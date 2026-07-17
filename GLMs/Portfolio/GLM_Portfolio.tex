@@ -1,0 +1,239 @@
+\documentclass[12pt,a4paper]{report}
+
+% ---------- Packages ----------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage[hidelinks]{hyperref}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{setspace}
+\usepackage{parskip}
+\usepackage{tocloft}
+
+% ---------- Heading style ----------
+\renewcommand{\thepart}{\Roman{part}}
+\titleformat{\part}[display]
+  {\normalfont\Huge\bfseries\centering}{PART \thepart}{20pt}{\Huge}
+\titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries}{\thesubsection}{1em}{}
+
+\setcounter{tocdepth}{3}
+\setcounter{secnumdepth}{3}
+
+% Term entry shortcut: heading + automatic TOC entry, underlined like the Word draft
+\newcommand{\term}[1]{\subsection*{\underline{#1}}\addcontentsline{toc}{subsection}{#1}}
+
+\title{\textbf{Generalised Linear Models}\\[0.3cm]\large A Portfolio}
+\author{Dominion Oamen\\ Student Number: 2021332339}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+\newpage
+
+% ================= FOREWORD =================
+\chapter*{Foreword}
+\addcontentsline{toc}{chapter}{Foreword}
+
+This portfolio aims to surgically dissect the intricate cogs that drive the wheel of generalised linear models, it represents an ongoing effort to learn, understand, and apply concepts encountered both in lectures and through independent research. Although preliminary work had already begun at the time this foreword was written, the structure and guidance provided by our lecturer prompted a reframing of the overall approach.
+
+The approach follows a deliberate, three stage progression.
+
+The first stage addresses terminology. Statistical language is not incidental. It is the medium through which the entire framework of GLMs is understood and communicated. This section therefore unpacks the key terms used throughout the field. Some of these terms will already be familiar, but precision of context is essential in statistics, where a word's meaning can shift depending on the model or assumption at hand.
+
+The second stage introduces the exponential family of distributions: what defines it, why it occupies such a central place in the theory of GLMs, and where its members arise in practice. This section will aim to consolidate conceptual foundations before formal derivations are introduced.
+
+The third stage moves into the mechanics of GLMs proper, beginning with the simple linear model and progressively expanding into its generalisations, including models such as ANOVA and ANCOVA, situating each within the broader GLM framework.
+
+The purpose of this foreword is to orient the reader to what follows. My aim, both as the author of this portfolio and as the student of the subject, is for this document to function as a coherent guide, one capable of taking the reader from foundational uncertainty to confident understanding of GLMs.
+
+Elon Musk, addressing engineers tasked with building a six-thousand-tonne die-casting machine capable of producing a car body in a single cycle, reportedly said: \textit{``Precision is not expensive, it's mostly about caring.''} Do you care to make it precise? Then you can make it precise. That principle guides the structure and rigor of this portfolio. With that said, let us begin.
+
+\newpage
+
+% ================= TABLE OF CONTENTS =================
+\tableofcontents
+\newpage
+
+% ================= PART I =================
+\part{Statistical Terminology}
+
+\section{Foundational Concepts}
+
+\term{Linear Regression}
+A model used in statistics to assess the connection between a scalar response (dependent variable) and one or more explanatory factors (independent variables or regressor) is called linear regression.
+\[
+y_i = \beta_0 + \beta_1 x_i + \epsilon_i
+\]
+
+\term{Simple Linear Regression}
+A linear regression with just one explanatory variable. It is a clear system with no confounding, where cause is most likely linked directly to effect.
+
+\term{Multiple Linear Regression}
+A linear regression with 2 or more explanatory variables. It is more interesting and more prone to confounding, since cause doesn't always mean effect; it could be a combination of causes, or a cause could appear prominent only because of another variable.
+
+\term{Generalised Linear Model}
+A generalised linear model is a generalization of linear regression and is more versatile. The GLM generalizes linear regression by connecting the linear model to the response variable via a link function and by permitting the size of the variance of each measurement to be a function of its predicted value.
+
+\term{Log-linear Model}
+A log-linear model is a mathematical model that allows for the application of potential multivariate linear regression by taking the form of a function whose logarithm equals a linear combination of the model's parameters. It has the form:
+\[
+\exp\left\{c + \sum_i w_i f_i(X)\right\}
+\]
+where $f_i(X)$: quantities that are functions of vector of values $X$, and $c$ and $w_i$: model parameters.
+
+When you take the natural log of this it gives you a linear combination you can work with.
+
+\term{Exponential Family}
+An exponential family is a parametric set of probability distributions with this form:
+\[
+f_X(x \mid \theta) = h(x)\exp\big[\eta(\theta)\cdot T(x) - A(\theta)\big]
+\]
+where $h(x)$ is non-negative and known, and $\eta(\theta)$, $T(x)$, $A(\theta)$ are known as well.
+
+\term{One-Parameter Exponential Family}
+A one-parameter exponential family is a special case of the exponential family in which the distribution depends on a single scalar parameter $\theta$, and its probability density (or mass) function can be written in the form:
+\[
+f(y;\theta) = \exp\big\{a(y)\,b(\theta) + c(\theta) + d(y)\big\}
+\]
+where $a(y)$ is the sufficient statistic, $b(\theta)$ is the natural (canonical) parameter, $c(\theta)$ is the log-partition function ensuring the density normalises to one, and $d(y)$ is the base measure, a term depending on $y$ alone. This form underlies several of the standard distributions used in GLMs, such as the Binomial and Poisson, for which the dispersion parameter is fixed at 1 (Taylor, n.d.).
+
+\term{Link Function}
+A link function links the predicted mean of the response variable $\mu$ to the linear predictor $\eta$ in a GLM, in mathematics it expresses the predicted mean as a linear combination of predictors by the transformation below:
+\[
+g(\mu) = \eta = X\beta = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \cdots + \beta_n x_n
+\]
+inversely,
+\[
+\mu = g^{-1}(X\beta)
+\]
+When $g$ is chosen such that the linear predictor equals the natural parameter of the distribution, it is called a canonical link function for that distribution. E.g., logit link for the binomial, or the log link for Poisson.
+
+\term{Transposed Matrix}
+For any matrix $A$ with dimensions $m \times n$, the transpose $A^\top$ is the $n \times m$ matrix obtained by swapping its rows and columns:
+\[
+(A^\top)_{ij} = A_{ji}
+\]
+That is, the entry in row $i$, column $j$ of $A^\top$ is the entry that was in row $j$, column $i$ of the original matrix $A$. For example:
+\[
+A = \begin{pmatrix} 1 & 2 & 3 \\ 4 & 5 & 6 \end{pmatrix}_{2\times3}
+\quad\Rightarrow\quad
+A^\top = \begin{pmatrix} 1 & 4 \\ 2 & 5 \\ 3 & 6 \end{pmatrix}_{3\times2}
+\]
+A transposed vector is simply a special case of this, where the matrix has only one row or one column. Transposition is central to GLM estimation: for a design matrix $X$ and coefficient vector $\beta$, the normal equations used to estimate $\beta$ take the form
+\[
+\hat{\beta} = (X^\top X)^{-1}X^\top y
+\]
+which reflects the orthogonality condition $X^\top(y - \mu(\beta)) = 0$ that arises from likelihood theory in GLMs.
+
+\term{Transposed Vector}
+A transposed vector is a vector whose rows and columns have been flipped, so that a column vector becomes a row vector, or vice versa. It is denoted with a superscript $\top$ (or sometimes a prime). Transposition is necessary for vector multiplication: to multiply two vectors and obtain a single scalar via the dot product, one must be a row and the other a column, since matrix multiplication requires the number of columns in the first to equal the number of rows in the second. For a column vector of covariates $\mathbf{x}_i$ and column vector of coefficients $\beta$, this gives:
+\[
+\mathbf{x}_i^\top \beta = x_{i1}\beta_1 + x_{i2}\beta_2 + \cdots + x_{ip}\beta_p
+\]
+which is precisely the linear predictor $\eta_i$, a single scalar value.
+
+\term{Linear Predictor}
+Denoted $X\beta$, is the linear combination of covariates and regression coefficients that link the explanatory variables to the response distribution's mean through the link function.
+
+\term{Parameters}
+Quantities that characterise a probability distribution or a statistical model, and whose values determine the shape, location, or scale of that distribution. In a GLM, parameters include the regression coefficient ($\beta$), the dispersion parameter ($\varphi$), and any other parameter implicit in the chosen distribution.
+
+\term{Sufficiency}
+A property of a statistic whereby it captures all the information in a sample that is relevant to estimating a parameter, such that no other statistic calculated from the same sample provides additional information about that parameter.
+
+\term{Sufficient Statistic $a(y)$}
+The statistic $a(y)$ that satisfies the property of sufficiency for a parameter. In exponential family notation, it is the function of the data that appears multiplied by the natural parameter in the exponent. In many cases $a(y) = y$ and then the distribution is said to be in canonical form (Nowak, n.d., p.\ 2).
+
+\term{Natural Parameter $b(\theta)$}
+Also called the canonical parameter, this is the parameter $\theta$ that appears in the exponent of a distribution written in exponential family form. It is the parameter through which the linear predictor connects to the distribution when a canonical link function is used.
+
+\term{Log-partition Function $c(\theta)$}
+Also called the cumulant function or normalising function, this ensures the exponential family density integrates (or sums) to one. Its derivative generates the moments of the sufficient statistic: the first derivative gives the mean, the second derivative gives the variance.
+
+\term{Base Measure $d(y)$}
+In the one-parameter exponential family form, $d(y)$ is the component of the exponent that depends on $y$ alone, independent of $\theta$. It functions as a normalising term ensuring the density integrates to 1.
+
+\term{Dispersion Parameter}
+A parameter, denoted $\varphi$, that scales the variance of the response distribution independently of its mean. It reflects the degree of variability in the data beyond what is explained by the mean-variance relationship of the chosen distribution. In the one-parameter exponential family form the dispersion parameter is fixed at 1.
+
+\term{Score Function}
+The first derivative of the log-likelihood function with respect to the parameter(s) of interest. Setting the score function equal to zero and solving yields the maximum likelihood estimate.
+
+\term{Maximum Likelihood Estimates}
+The parameter values that maximise the likelihood function, i.e., the values that make the observed data most probable under the assumed model. In GLMs, MLEs for $\beta$ are typically obtained via iterative methods such as Iteratively Reweighted Least Squares (IRLS), since closed-form solutions rarely exist outside the Gaussian case.
+
+\term{Canonical Form}
+A distribution is said to be in canonical form when its sufficient statistic $a(y)$ is equal to $y$ itself, in which case the natural parameter is also called the canonical parameter.
+
+\term{Logit}
+The canonical link function for the binomial distribution, defined as the log-odds:
+\[
+g(\mu) = \log\left[\frac{\mu}{1-\mu}\right]
+\]
+It maps probabilities bound between 0 and 1 onto the entire real line, making it suitable for linear modelling.
+
+\term{Probit}
+A link function defined as the inverse of the standard normal cumulative distribution function, $g(\mu) = \Phi^{-1}(\mu)$. It is commonly used for binary response models as an alternative to the logit link.
+
+\term{Nuisance Parameter}
+A parameter in a statistical model that is not of primary interest but must be accounted for (estimated or otherwise handled) in order to correctly estimate the parameters that are of interest. In many GLMs, the dispersion parameter is treated as a nuisance parameter.
+
+% ================= PART II =================
+\part{The Exponential Family}
+
+\section{Definition and Properties}
+%
+
+\section{Why the Exponential Family Matters}
+%
+
+\section{Members of the Exponential Family}
+\subsection{Normal Distribution}
+\subsection{Binomial Distribution}
+\subsection{Poisson Distribution}
+\subsection{Gamma Distribution}
+
+% ================= PART III =================
+\part{Generalised Linear Models}
+
+\section{The Simple Linear Model}
+%
+
+\section{Extensions of the Linear Model}
+\subsection{ANOVA}
+\subsection{ANCOVA}
+
+\section{The GLM Framework}
+\subsection{Link Functions}
+\subsection{Model Fitting}
+
+% ================= BIBLIOGRAPHY =================
+\chapter*{Bibliography}
+\addcontentsline{toc}{chapter}{Bibliography}
+
+Referencing is done using APA style.
+
+\begin{thebibliography}{99}\setlength{\itemsep}{0.5em}
+
+\bibitem{wiki} Generalised Linear Models. (Last edited 7 June 2026). In \textit{Wikipedia}. \url{https://en.wikipedia.org/wiki/Generalized_linear_model}
+
+\bibitem{dobson} Dobson, A. J., \& Barnett, A. G. (2018). \textit{An introduction to generalized linear models} (4th ed.). CRC Press.
+
+\bibitem{mccullagh} McCullagh, P., \& Nelder, J. A. (1989). \textit{Generalized linear models} (2nd ed.). Chapman and Hall/CRC.
+
+\bibitem{agresti} Agresti, A. (2015). \textit{Foundations of linear and generalized linear models}. John Wiley \& Sons.
+
+\bibitem{casella} Casella, G., \& Berger, R. L. (2002). \textit{Statistical inference} (2nd ed.). Duxbury Press.
+
+\bibitem{nowak} Nowak, R. (n.d.). \textit{Note on generalized linear models} [Lecture notes]. University of Wisconsin--Madison, Department of Electrical and Computer Engineering. \url{https://nowak.ece.wisc.edu/ece830/glm_notes.pdf}
+
+\bibitem{taylor} Taylor, J. (n.d.). \textit{Generalized linear models} [Lecture notes]. Stanford University, Department of Statistics. \url{https://web.stanford.edu/class/stats305b/notes/GLM_I.html}
+
+\end{thebibliography}
+
+\end{document}
