@@ -1,0 +1,50 @@
+\documentclass[12pt]{article}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage[margin=1in]{geometry}
+
+\begin{document}
+
+\section*{$c(\theta)$: Cumulant function}
+
+\subsection*{Proof}
+
+\[
+\int f(y;\theta)\, dy = 1 \qquad \text{NB: sum when discrete}
+\]
+
+\[
+\int \exp\{a(y)b(\theta) + c(\theta) + d(y)\}\, dy = 1
+\]
+
+\[
+\exp\{c(\theta)\} \int \exp\{a(y)b(\theta) + d(y)\}\, dy = 1
+\qquad \exp\{A+B\} = \exp\{A\}\cdot\exp\{B\}
+\]
+
+\[
+\exp\{c(\theta)\} = \frac{1}{\int \cdots}
+\qquad \text{divide both sides by the integral}
+\]
+
+\[
+\exp\{c(\theta)\} = \left( \int \exp\{a(y)b(\theta) + d(y)\}\, dy \right)^{-1}
+\]
+
+\[
+\log\big[\exp\{c(\theta)\}\big] = \log\left( \int \exp\{a(y)b(\theta) + d(y)\}\, dy \right)^{-1}
+\]
+
+\[
+\therefore\ c(\theta) = -\log\left( \int \exp\{a(y)b(\theta) + d(y)\}\, dy \right)
+\]
+
+\[
+-c(\theta) = \log\left( \int \cdots \right)
+\]
+
+\[
+\exp\{-c(\theta)\} = \int \exp\{a(y)b(\theta) + d(y)\}\, dy
+\]
+
+\end{document}

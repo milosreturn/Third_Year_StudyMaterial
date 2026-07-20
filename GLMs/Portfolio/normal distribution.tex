@@ -1,0 +1,47 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{parskip}
+\usepackage{times}
+
+\title{Normal Distribution}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\vspace{-2cm}
+
+Normal distribution (Gaussian Distribution) is a continuous probability distribution for a real-valued random variable.
+
+Normal distributions can be important in statistics, and their importance is partly due to the CLT --- the average of many statistically independent observations of a random variable is a random variable if it has a finite mean and variance and it converges to a normal distribution as it approaches $\infty$. Physical quantities that are sums of many independent processes, such as height, measurement errors, often have near normal distributions.
+
+\section*{The PDF of the Normal}
+
+\[
+f(y;\mu) = \frac{1}{(2\pi\sigma^2)^{\frac{1}{2}}} \exp\left(-\frac{(y-\mu)^2}{2\sigma^2}\right)
+\]
+
+Now let's rewrite this in one-parameter exponential form.
+
+\[
+\log\big(f(y;\mu)\big) = \log(1) + \left(-\frac{1}{2}\log(2\pi\sigma^2)\right) - \frac{(y-\mu)^2}{2\sigma^2}
+\]
+
+\[
+\log\big(f(y;\mu)\big) = 0 - \frac{1}{2}\log(2\pi\sigma^2) - \frac{y^2}{2\sigma^2} + \frac{y\mu}{\sigma^2} - \frac{\mu^2}{2\sigma^2}
+\]
+
+\[
+\exp\Big[\log\big(f(y;\mu)\big)\Big] = \exp\left\{ y\cdot\frac{\mu}{\sigma^2} - \frac{\mu^2}{2\sigma^2} - \left[\frac{1}{2}\log(2\pi\sigma^2) + \frac{y^2}{2\sigma^2}\right]\right\}
+\]
+
+\vspace{0.3cm}
+\begin{align*}
+a(y) &= y & &\text{canonical form} \\[4pt]
+b(\mu) &= \frac{\mu}{\sigma^2} & &\text{canonical link} \\[4pt]
+c(\mu) &= -\frac{\mu^2}{2\sigma^2} \\[4pt]
+d(y) &= -\left[\frac{1}{2}\log(2\pi\sigma^2) + \frac{y^2}{2\sigma^2}\right]
+\end{align*}
+
+\end{document}
