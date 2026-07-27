@@ -1,0 +1,843 @@
+\documentclass[12pt,a4paper]{report}
+
+% ---------- Packages ----------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage[hidelinks]{hyperref}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{setspace}
+\usepackage{parskip}
+\usepackage{tocloft}
+\usepackage{graphicx}
+
+% ---------- Heading style ----------
+\renewcommand{\thepart}{\Roman{part}}
+\titleformat{\part}[display]
+  {\normalfont\Huge\bfseries\centering}{PART \thepart}{20pt}{\Huge}
+\titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries}{\thesubsection}{1em}{}
+
+\setcounter{tocdepth}{3}
+\setcounter{secnumdepth}{3}
+
+% Term entry shortcut: heading + automatic TOC entry, underlined like the Word draft
+\newcommand{\term}[1]{\subsection*{\underline{#1}}\addcontentsline{toc}{subsection}{#1}}
+
+\title{\textbf{Generalised Linear Models}\\[0.3cm]\large A Portfolio}
+\author{Dominion Oamen\\ Student Number: 2021332339}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+\newpage
+
+% ================= FOREWORD =================
+\chapter*{Foreword}
+\addcontentsline{toc}{chapter}{Foreword}
+
+This portfolio began as an attempt to capture my journey from absolute uncertainty to a solid grasp of Generalised Linear Models. My aim is to document not just the concepts, but the problems I encountered, the questions I asked, and how I went about answering them.
+
+Traditional note-taking usually amounts to writing down vague, cognitively disconnected concepts that teach you the how without ever establishing the why. This portfolio takes the opposite approach: it moves slowly through the why before arriving at the how, because understanding why a method exists builds a far more solid connection between a problem and its solution than memorising the mechanics ever could.
+
+To ground these concepts in something real, one dataset runs throughout this entire portfolio. Working with the same data across every chapter surfaces questions that never show up when you only understand the math and the terminology in the abstract, questions born from frustration, from failed attempts, and from the peculiar patterns that only reveal themselves once actual code is written.
+
+I have not approached this portfolio like a textbook, even though it covers essentially all the mathematics needed for a first course in GLMs. Instead, the structure follows the shape of the problem itself: try something, watch it fail, ask why it failed, then build the solution that addresses that specific failure. Each chapter is a pathway from problem to solution rather than a definition waiting to be memorised.
+
+By the end of this portfolio, a reader should understand why we speak about generalised linear models at all, the mathematics underlying them, how to fit a GLM, and how to interpret its results. As an added bonus, I also cover dimensionality reduction using Permutation Variable Importance in Python via DALEX, since knowing which variables actually matter, and which can safely be dropped, is a skill that bridges data engineering and data analysis. Python handles that variable selection step; R handles the GLM fitting itself, since it has strong built-in support for it.
+
+Without further ado, let's start this journey together.
+
+\newpage
+
+% ================= TABLE OF CONTENTS =================
+\tableofcontents
+\newpage
+
+% ================= PART I: THE PROBLEM =================
+\part{The Problem}
+
+\chapter{Meet the Dataset}
+
+\chapter{Can Linear Regression Solve This?}
+
+\term{Linear Regression}
+A model used in statistics to assess the connection between a scalar response (dependent variable) and one or more explanatory factors (independent variables or regressor) is called linear regression.
+\[
+y_i = \beta_0 + \beta_1 x_i + \epsilon_i
+\]
+
+\term{Simple Linear Regression}
+A linear regression with just one explanatory variable. It is a clear system with no confounding, where cause is most likely linked directly to effect.
+
+\term{Multiple Linear Regression}
+A linear regression with 2 or more explanatory variables. It is more interesting and more prone to confounding, since cause doesn't always mean effect; it could be a combination of causes, or a cause could appear prominent only because of another variable.
+
+To see why the exponential family occupies such a central place in GLM theory, it helps to start with the simple linear model.
+
+\subsection*{The Linear Model as a Starting Point}
+
+The simple linear model is written
+\[
+Y_i = \beta_0 + \beta_1 x_i + \epsilon_i
+\]
+where $\epsilon_i$ is an error term assumed to be normally distributed with mean 0 and constant variance $\sigma^2$, that is $\epsilon_i \sim N(0,\sigma^2)$. Because $Y_i$ is a constant ($\beta_0 + \beta_1 x_i$) plus a normally distributed random variable, $Y_i$ itself is normally distributed. Adding a constant to a normal random variable shifts its mean without changing its shape or its variance, so
+\[
+Y_i \sim N(\mu_i, \sigma^2), \quad \text{where } \mu_i = \beta_0 + \beta_1 x_i
+\]
+In other words, the linear combination of the explanatory variable and its coefficient does not directly define $Y_i$, it defines where the mean of $Y_i$ sits. The error term provides the randomness and its distributional form (normal, symmetric, constant spread) while the linear predictor $\beta_0 + \beta_1 x_i$ simply drags that mean to where the covariate $x_i$ indicates it should be. This is a subtle but important distinction to hold onto, because it is precisely this separation, a distributional assumption on one side, a linear predictor governing the mean on the other, that is later generalised by GLMs.
+
+\subsection*{Extending to Multiple Explanatory Variables and Vector Responses}
+
+The same logic extends naturally once there is more than one explanatory variable. Instead of a single $x_i$, we have a row of covariates for each observation, and the mean becomes
+\[
+\mu_i = \beta_0 + \beta_1 x_{i1} + \beta_2 x_{i2} + \cdots + \beta_p x_{ip} = \mathbf{x}_i^\top \beta
+\]
+with $Y_i \sim N(\mu_i, \sigma^2)$ still holding, only now $\mu_i$ is a linear combination of several predictors rather than one. Written for the whole sample at once, this is $Y = X\beta + \epsilon$, with $X$ the design matrix and $\beta$ the vector of coefficients.
+
+It is also worth noting that $Y_i$ need not always be a single scalar observation. In the case of several correlated response variables measured on the same subject (repeated measures, or several outcome variables measured together), $Y_i$ can be a vector, leading to multivariate versions of the linear model. The same basic idea holds: a vector of means, each element a linear combination of covariates, governs the centre of a multivariate normal distribution. This is not the focus of this portfolio, but it is worth flagging as evidence of how far the basic idea, a linear predictor for the mean, with a distribution around it, can be stretched even while staying within the normal framework.
+
+\subsection*{Where the Linear Model Falls Short}
+
+The trouble is that the assumptions underpinning the linear model, constant variance, a normally distributed response, and a mean that varies linearly with the predictors, do not hold for a great deal of real data. In practice, counts of events, binary outcomes (success/failure) and proportions are common, none of which are well described by a normal distribution with constant variance. A count cannot be negative, and its variance tends to grow with its mean; a binary outcome only takes two values; a proportion is bounded between 0 and 1. Forcing these onto a normal linear model produces predictions that can fall outside the range the data can actually take, and gets the variance structure wrong besides.
+
+There is also the question of the relationship between the response mean and the linear predictor. In the classical linear model, that relationship is direct: $\mu_i$ literally equals the linear combination of covariates. But for many of the response types above, a straight linear relationship on the original scale does not make sense. For a binary outcome, for instance, what varies linearly with the covariates is more naturally the log-odds of success (the logit) rather than the probability itself, since the log-odds can range over the whole real line while the probability is squeezed between 0 and 1.
+
+Historically, fitting anything outside the normal linear model was difficult because closed-form estimators (of the kind available for ordinary least squares) generally do not exist once the response distribution departs from normality or the mean is connected to the predictors through a nonlinear transformation. This is where advances in statistical theory and computing power changed things. Iterative fitting procedures, developed initially to extend maximum likelihood estimation into settings without closed-form solutions, made it possible to fit models for non-normal responses using methods analogous in structure to those used for the linear model, even though no neat algebraic formula for the estimates exists. Numerically, the estimation still proceeds via an iteratively reweighted least-squares computation, echoing the linear model even as the distributional assumptions underlying it change entirely.
+
+% ================= PART II: UNDERSTANDING WHY IT FAILED =================
+\part{Understanding Why It Failed}
+
+\chapter{Different Types of Response Variables}
+
+\chapter{The Language of GLMs}
+
+\term{Generalised Linear Model}
+A generalised linear model is a generalization of linear regression and is more versatile. The GLM generalizes linear regression by connecting the linear model to the response variable via a link function and by permitting the size of the variance of each measurement to be a function of its predicted value.
+
+\term{Log-linear Model}
+A log-linear model is a mathematical model that allows for the application of potential multivariate linear regression by taking the form of a function whose logarithm equals a linear combination of the model's parameters. It has the form:
+\[
+\exp\left\{c + \sum_i w_i f_i(X)\right\}
+\]
+where $f_i(X)$: quantities that are functions of vector of values $X$, and $c$ and $w_i$: model parameters.
+
+When you take the natural log of this it gives you a linear combination you can work with.
+
+\term{Exponential Family}
+An exponential family is a parametric set of probability distributions with this form:
+\[
+f_X(x \mid \theta) = h(x)\exp\big[\eta(\theta)\cdot T(x) - A(\theta)\big]
+\]
+where $h(x)$ is non-negative and known, and $\eta(\theta)$, $T(x)$, $A(\theta)$ are known as well.
+
+\term{One-Parameter Exponential Family}
+A one-parameter exponential family is a special case of the exponential family in which the distribution depends on a single scalar parameter $\theta$, and its probability density (or mass) function can be written in the form:
+\[
+f(y;\theta) = \exp\big\{a(y)\,b(\theta) + c(\theta) + d(y)\big\}
+\]
+where $a(y)$ is the sufficient statistic, $b(\theta)$ is the natural (canonical) parameter, $c(\theta)$ is the log-partition function ensuring the density normalises to one, and $d(y)$ is the base measure, a term depending on $y$ alone. This form underlies several of the standard distributions used in GLMs, such as the Binomial and Poisson, for which the dispersion parameter is fixed at 1 (Taylor, n.d.).
+
+\term{Link Function}
+A link function links the predicted mean of the response variable $\mu$ to the linear predictor $\eta$ in a GLM, in mathematics it expresses the predicted mean as a linear combination of predictors by the transformation below:
+\[
+g(\mu) = \eta = X\beta = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \cdots + \beta_n x_n
+\]
+inversely,
+\[
+\mu = g^{-1}(X\beta)
+\]
+When $g$ is chosen such that the linear predictor equals the natural parameter of the distribution, it is called a canonical link function for that distribution. E.g., logit link for the binomial, or the log link for Poisson.
+
+\term{Transposed Matrix}
+For any matrix $A$ with dimensions $m \times n$, the transpose $A^\top$ is the $n \times m$ matrix obtained by swapping its rows and columns:
+\[
+(A^\top)_{ij} = A_{ji}
+\]
+That is, the entry in row $i$, column $j$ of $A^\top$ is the entry that was in row $j$, column $i$ of the original matrix $A$. For example:
+\[
+A = \begin{pmatrix} 1 & 2 & 3 \\ 4 & 5 & 6 \end{pmatrix}_{2\times3}
+\quad\Rightarrow\quad
+A^\top = \begin{pmatrix} 1 & 4 \\ 2 & 5 \\ 3 & 6 \end{pmatrix}_{3\times2}
+\]
+A transposed vector is simply a special case of this, where the matrix has only one row or one column. Transposition is central to GLM estimation: for a design matrix $X$ and coefficient vector $\beta$, the normal equations used to estimate $\beta$ take the form
+\[
+\hat{\beta} = (X^\top X)^{-1}X^\top y
+\]
+which reflects the orthogonality condition $X^\top(y - \mu(\beta)) = 0$ that arises from likelihood theory in GLMs.
+
+\term{Transposed Vector}
+A transposed vector is a vector whose rows and columns have been flipped, so that a column vector becomes a row vector, or vice versa. It is denoted with a superscript $\top$ (or sometimes a prime). Transposition is necessary for vector multiplication: to multiply two vectors and obtain a single scalar via the dot product, one must be a row and the other a column, since matrix multiplication requires the number of columns in the first to equal the number of rows in the second. For a column vector of covariates $\mathbf{x}_i$ and column vector of coefficients $\beta$, this gives:
+\[
+\mathbf{x}_i^\top \beta = x_{i1}\beta_1 + x_{i2}\beta_2 + \cdots + x_{ip}\beta_p
+\]
+which is precisely the linear predictor $\eta_i$, a single scalar value.
+
+\term{Linear Predictor}
+Denoted $X\beta$, is the linear combination of covariates and regression coefficients that link the explanatory variables to the response distribution's mean through the link function.
+
+\term{Parameters}
+Quantities that characterise a probability distribution or a statistical model, and whose values determine the shape, location, or scale of that distribution. In a GLM, parameters include the regression coefficient ($\beta$), the dispersion parameter ($\varphi$), and any other parameter implicit in the chosen distribution.
+
+\term{Sufficiency}
+A property of a statistic whereby it captures all the information in a sample that is relevant to estimating a parameter, such that no other statistic calculated from the same sample provides additional information about that parameter.
+
+\term{Sufficient Statistic $a(y)$}
+The statistic $a(y)$ that satisfies the property of sufficiency for a parameter. In exponential family notation, it is the function of the data that appears multiplied by the natural parameter in the exponent. In many cases $a(y) = y$ and then the distribution is said to be in canonical form (Nowak, n.d., p.\ 2).
+
+\term{Natural Parameter $b(\theta)$}
+Also called the canonical parameter, this is the parameter $\theta$ that appears in the exponent of a distribution written in exponential family form. It is the parameter through which the linear predictor connects to the distribution when a canonical link function is used.
+
+\term{Log-partition Function $c(\theta)$}
+Also called the cumulant function or normalising function, this ensures the exponential family density integrates (or sums) to one. Its derivative generates the moments of the sufficient statistic: the first derivative gives the mean, the second derivative gives the variance.
+
+\term{Base Measure $d(y)$}
+In the one-parameter exponential family form, $d(y)$ is the component of the exponent that depends on $y$ alone, independent of $\theta$. It functions as a normalising term ensuring the density integrates to 1.
+
+\term{Dispersion Parameter}
+A parameter, denoted $\varphi$, that scales the variance of the response distribution independently of its mean. It reflects the degree of variability in the data beyond what is explained by the mean-variance relationship of the chosen distribution. In the one-parameter exponential family form the dispersion parameter is fixed at 1.
+
+\term{Score Function}
+The first derivative of the log-likelihood function with respect to the parameter(s) of interest. Setting the score function equal to zero and solving yields the maximum likelihood estimate.
+
+\term{Maximum Likelihood Estimates}
+The parameter values that maximise the likelihood function, i.e., the values that make the observed data most probable under the assumed model. In GLMs, MLEs for $\beta$ are typically obtained via iterative methods such as Iteratively Reweighted Least Squares (IRLS), since closed-form solutions rarely exist outside the Gaussian case.
+
+\term{Canonical Form}
+A distribution is said to be in canonical form when its sufficient statistic $a(y)$ is equal to $y$ itself, in which case the natural parameter is also called the canonical parameter.
+
+\term{Logit}
+The canonical link function for the binomial distribution, defined as the log-odds:
+\[
+g(\mu) = \log\left[\frac{\mu}{1-\mu}\right]
+\]
+It maps probabilities bound between 0 and 1 onto the entire real line, making it suitable for linear modelling.
+
+\term{Probit}
+A link function defined as the inverse of the standard normal cumulative distribution function, $g(\mu) = \Phi^{-1}(\mu)$. It is commonly used for binary response models as an alternative to the logit link.
+
+\term{Nuisance Parameter}
+A parameter in a statistical model that is not of primary interest but must be accounted for (estimated or otherwise handled) in order to correctly estimate the parameters that are of interest. In many GLMs, the dispersion parameter is treated as a nuisance parameter.
+
+% ================= PART III: THE MATHEMATICS BEHIND GLMS =================
+\part{The Mathematics Behind GLMs}
+
+\chapter{The Exponential Family}
+
+\section{Definition and Properties}
+
+A probability distribution belongs to the exponential family if its density (or mass) function can be written in the general form
+\[
+f_X(x \mid \theta) = h(x)\exp\big\{\eta(\theta)\cdot T(x) - A(\theta)\big\}
+\]
+Here $h(x)$ is a known, non-negative function of the data alone, while $\eta(\theta)$, $T(x)$ and $A(\theta)$ are known functions governing the natural parameter, the sufficient statistic, and the normalising term respectively. In this general version $\theta$ may be a vector and $T(x)$ a vector of sufficient statistics, so this is sometimes called the multi-parameter or full exponential family.
+
+For GLMs, though, what matters is the one-parameter exponential family, since this is the restricted form underlying the standard GLM distributions: Binomial, Poisson, Normal, and Gamma. Restricting $\theta$ to a scalar and writing the exponent as a sum rather than a dot product gives the working form used throughout this portfolio:
+\[
+f(y;\theta) = \exp\big\{a(y)\,b(\theta) + c(\theta) + d(y)\big\}
+\]
+
+Matching the terms defined in Part I:
+\begin{itemize}
+  \item $a(y)$ is the sufficient statistic: the function of the data that gets multiplied by the natural parameter.
+  \item $b(\theta)$ is the natural (canonical) parameter, the function of $\theta$ through which the linear predictor will eventually connect to the distribution.
+  \item $c(\theta)$ is the log-partition function, which guarantees $f(y;\theta)$ integrates (or sums) to one over its support.
+  \item $d(y)$ is the base measure, the leftover piece depending on $y$ alone, with no $\theta$ in it.
+\end{itemize}
+
+What makes this form useful is the separation it forces between data and parameter. $y$ and $\theta$ never appear multiplied together except through the product $a(y)\,b(\theta)$; everything else involving $y$ sits in $d(y)$, and everything else involving $\theta$ sits in $c(\theta)$. This separation is also what makes $a(y)$ sufficient in the first place: once $a(y)$ is known, nothing more about $y$ is needed to work out how the likelihood depends on $\theta$.
+
+A distribution is in canonical form when $a(y) = y$. In that case $b(\theta)$ is called the canonical parameter, and, as covered later when link functions are discussed, the link function that sets the linear predictor equal to $b(\theta)$ directly is the canonical link for that distribution.
+
+$c(\theta)$ is worth dwelling on a little longer, because it isn't really a free choice, it's forced by the requirement that $f(y;\theta)$ be a valid density. Given $a(y)$, $b(\theta)$ and $d(y)$, normalisation requires
+\[
+\int \exp\{a(y)\,b(\theta) + d(y)\}\,dy = \exp\{-c(\theta)\}
+\]
+(or the equivalent sum in the discrete case), so $c(\theta)$ ends up completely determined by the rest of the exponent. This is also why $c(\theta)$ is called the cumulant function: differentiating it with respect to $\theta$ generates the moments of $a(y)$. Under the canonical parameterisation, $\mathbb{E}[a(Y)] = -c'(\theta)$ and $\mathrm{Var}[a(Y)] = -c''(\theta)$, a fact that becomes useful once the mean-variance relationships for individual GLM distributions are worked out further on.
+
+\subsection*{Proof: $c(\theta)$ as the Cumulant (Normalising) Function}
+
+The claim above, that $c(\theta)$ is forced by normalisation rather than being a free choice, is not asserted without justification; it follows directly from requiring $f(y;\theta)$ to be a valid density. The derivation below is a proof of that result.
+
+Since $f(y;\theta)$ is a probability density (or mass) function, it must integrate, or sum in the discrete case, to 1:
+\[
+\int f(y;\theta)\, dy = 1
+\]
+Substituting the one-parameter exponential family form gives
+\[
+\int \exp\{a(y)b(\theta) + c(\theta) + d(y)\}\, dy = 1
+\]
+Since $c(\theta)$ does not depend on $y$, it can be factored out of the integral using $\exp\{A+B\} = \exp\{A\}\cdot\exp\{B\}$:
+\[
+\exp\{c(\theta)\} \int \exp\{a(y)b(\theta) + d(y)\}\, dy = 1
+\]
+Dividing both sides by the remaining integral isolates $\exp\{c(\theta)\}$:
+\[
+\exp\{c(\theta)\} = \left( \int \exp\{a(y)b(\theta) + d(y)\}\, dy \right)^{-1}
+\]
+Taking the logarithm of both sides,
+\[
+\log\big[\exp\{c(\theta)\}\big] = \log\left( \int \exp\{a(y)b(\theta) + d(y)\}\, dy \right)^{-1}
+\]
+which simplifies, using $\log(x^{-1}) = -\log(x)$, to
+\[
+\therefore\ c(\theta) = -\log\left( \int \exp\{a(y)b(\theta) + d(y)\}\, dy \right)
+\]
+Equivalently, moving the negative sign across gives
+\[
+-c(\theta) = \log\left( \int \exp\{a(y)b(\theta) + d(y)\}\, dy \right)
+\]
+and exponentiating both sides recovers the normalisation identity stated above:
+\[
+\exp\{-c(\theta)\} = \int \exp\{a(y)b(\theta) + d(y)\}\, dy
+\]
+This confirms that, given $a(y)$, $b(\theta)$, and $d(y)$, the function $c(\theta)$ is not an independent modelling choice but is fully determined by the requirement that the density integrate to one. $\blacksquare$
+
+\section{Why the Exponential Family Matters}
+
+\subsection*{Toward a Unified Framework}
+
+Nelder and Wedderburn's insight, in 1972, was that a wide range of these non-normal response distributions, Binomial, Poisson, Gamma, and Normal among them, could all be written in the same one-parameter exponential family form introduced above. Once a distribution is expressed that way, the same general machinery (score equations, Fisher information, iterative reweighted least squares) can be used to estimate its parameters, regardless of which member of the family is in play. The generalised linear model is precisely this: a linear predictor for the mean, exactly as in the classical linear model, combined with a chosen distribution from the exponential family and a link function that connects the mean of that distribution to the linear predictor, allowing the connection to be nonlinear (such as the log-odds link mentioned above) where the data demand it.
+
+This is why the exponential family matters so much to GLM theory. It is not simply a convenient algebraic form, it is the structural bridge that lets the well-understood machinery of the linear model be reused, almost unchanged in spirit, across an entire class of response distributions that would otherwise each require their own separate theory (Nelder \& Wedderburn, 1972; Dobson \& Barnett, 2018).
+
+\chapter{Building the Exponential Family}
+
+\section{Normal Distribution}
+
+The Normal distribution, also known as the Gaussian distribution, is a continuous probability distribution for a real-valued random variable. It occupies a central place in statistics, largely because of the Central Limit Theorem: the average of many statistically independent observations of a random variable, provided that variable has a finite mean and variance, converges to a normal distribution as the number of observations grows large. Consequently, physical quantities that arise as the sum of many independent processes, such as height or measurement error, tend to be approximately normally distributed.
+
+\subsubsection*{Probability Density Function}
+
+\[
+f(y;\mu) = \frac{1}{(2\pi\sigma^2)^{1/2}}\exp\left\{-\frac{(y-\mu)^2}{2\sigma^2}\right\}
+\]
+
+\subsubsection*{Rewriting in One-Parameter Exponential Form}
+
+Taking logs of both sides gives
+\[
+\log f(y;\mu) = -\frac{1}{2}\log(2\pi\sigma^2) - \frac{(y-\mu)^2}{2\sigma^2}
+\]
+Expanding the square in the exponent separates the terms depending on $y$ alone, $\mu$ alone, and both together:
+\[
+\log f(y;\mu) = -\frac{1}{2}\log(2\pi\sigma^2) - \frac{y^2}{2\sigma^2} + \frac{y\mu}{\sigma^2} - \frac{\mu^2}{2\sigma^2}
+\]
+Exponentiating both sides and grouping terms according to the one-parameter exponential family form $f(y;\theta) = \exp\{a(y)b(\theta) + c(\theta) + d(y)\}$ then gives
+\[
+f(y;\mu) = \exp\left\{y\cdot\frac{\mu}{\sigma^2} - \frac{\mu^2}{2\sigma^2} - \left[\frac{1}{2}\log(2\pi\sigma^2) + \frac{y^2}{2\sigma^2}\right]\right\}
+\]
+so that, with $\theta = \mu$,
+\begin{align*}
+a(y) &= y \\[4pt]
+b(\mu) &= \frac{\mu}{\sigma^2} \\[4pt]
+c(\mu) &= -\frac{\mu^2}{2\sigma^2} \\[4pt]
+d(y) &= -\left[\frac{1}{2}\log(2\pi\sigma^2) + \frac{y^2}{2\sigma^2}\right]
+\end{align*}
+Since $a(y) = y$, the Normal distribution is in canonical form. When the dispersion is treated as fixed, as in the one-parameter form used throughout this portfolio, so that $\sigma^2 = 1$, $b(\mu)$ reduces to $\mu$ itself, meaning the natural parameter coincides with the mean. The canonical link for the Normal distribution is therefore the identity link $g(\mu) = \mu$, which is consistent with how the mean is modelled directly in the classical linear model discussed in Part III.
+
+\subsubsection*{Proof: Normalising Term $c(\mu)$}
+
+The value of $c(\mu)$ stated above is not an arbitrary choice; it follows from the general normalisation identity proved in Part II, applied here with $a(y) = y$, $b(\mu) = \mu/\sigma^2$, and $d(y) = -\left[\tfrac{1}{2}\log(2\pi\sigma^2) + y^2/(2\sigma^2)\right]$.
+
+Starting from the identity $\exp\{-c(\mu)\} = \int \exp\{a(y)b(\mu) + d(y)\}\,dy$ and substituting these terms gives
+\[
+\exp\{-c(\mu)\} = \int \exp\left\{\frac{y\mu}{\sigma^2} - \frac{y^2}{2\sigma^2} - \frac{1}{2}\log(2\pi\sigma^2)\right\} dy
+\]
+Since the last term does not depend on $y$, it can be pulled outside the integral:
+\[
+\exp\{-c(\mu)\} = \frac{1}{\sqrt{2\pi\sigma^2}} \int \exp\left\{\frac{y\mu}{\sigma^2} - \frac{y^2}{2\sigma^2}\right\} dy
+\]
+Completing the square in the remaining exponent, since $\dfrac{y\mu}{\sigma^2} - \dfrac{y^2}{2\sigma^2} = -\dfrac{(y-\mu)^2}{2\sigma^2} + \dfrac{\mu^2}{2\sigma^2}$, gives
+\[
+\exp\{-c(\mu)\} = \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left\{\frac{\mu^2}{2\sigma^2}\right\} \int \exp\left\{-\frac{(y-\mu)^2}{2\sigma^2}\right\} dy
+\]
+The remaining integral is the standard Gaussian integral, which evaluates to $\sqrt{2\pi\sigma^2}$, so this reduces to
+\[
+\exp\{-c(\mu)\} = \frac{1}{\sqrt{2\pi\sigma^2}} \cdot \exp\left\{\frac{\mu^2}{2\sigma^2}\right\} \cdot \sqrt{2\pi\sigma^2} = \exp\left\{\frac{\mu^2}{2\sigma^2}\right\}
+\]
+Equating exponents and solving for $c(\mu)$ therefore gives
+\[
+-c(\mu) = \frac{\mu^2}{2\sigma^2} \quad\Longrightarrow\quad \therefore\ c(\mu) = -\frac{\mu^2}{2\sigma^2} \qquad \blacksquare
+\]
+This confirms that $c(\mu)$ is forced by the same normalisation constraint established generally in Part II, worked through here with the specific $a(y)$ and $d(y)$ that arise from the Normal density.
+
+\section{Binomial Distribution}
+
+The Binomial distribution is a discrete probability distribution for the number of successes in a sequence of $n$ independent trials, each with a boolean outcome, success or failure, where success occurs with probability $p$ and failure with probability $1-p$, since the two outcomes must sum to 1. The special case $n=1$ is the Bernoulli distribution, so the Binomial can be thought of as a generalisation of a sequence of Bernoulli trials.
+
+\subsubsection*{Probability Mass Function}
+
+\[
+f(y;n,p) = \binom{n}{y} p^{y}(1-p)^{n-y}, \qquad y = 0,1,\dots,n
+\]
+
+\subsubsection*{Rewriting in One-Parameter Exponential Form}
+
+Taking logs of both sides gives
+\[
+\log f(y;n,p) = \log\binom{n}{y} + y\log(p) + (n-y)\log(1-p)
+\]
+Expanding the last term and collecting everything that multiplies $y$ separates the exponent into a piece linear in $y$ and a piece that does not depend on $y$ at all:
+\[
+\log f(y;n,p) = y\log(p) - y\log(1-p) + n\log(1-p) + \log\binom{n}{y}
+= y\log\!\left(\frac{p}{1-p}\right) + n\log(1-p) + \log\binom{n}{y}
+\]
+Exponentiating both sides and grouping terms according to $f(y;\theta) = \exp\{a(y)b(\theta) + c(\theta) + d(y)\}$ then gives
+\[
+f(y;n,p) = \exp\left\{y\log\!\left(\frac{p}{1-p}\right) + n\log(1-p) + \log\binom{n}{y}\right\}
+\]
+so that, with $\theta = p$,
+\begin{align*}
+a(y) &= y \\[4pt]
+b(p) &= \log\!\left(\frac{p}{1-p}\right) \\[4pt]
+c(p) &= n\log(1-p) \\[4pt]
+d(y) &= \log\binom{n}{y}
+\end{align*}
+Since $a(y) = y$, the Binomial distribution is in canonical form, and $b(p)$ is its canonical parameter. Because $b(p) = \log\!\left(\tfrac{p}{1-p}\right)$ is exactly the logit function defined in Part II, the canonical link for the Binomial distribution is the logit link, which is why logistic regression models the log-odds of success as a linear predictor rather than the probability itself.
+
+\subsubsection*{Proof: Normalising Term $c(p)$}
+
+The value of $c(p)$ stated above is not an arbitrary choice; it follows from the general normalisation identity proved in Part II, applied here with $a(y) = y$, $b(p) = \log\!\left(\tfrac{p}{1-p}\right)$, and $d(y) = \log\binom{n}{y}$. Since the Binomial distribution is discrete, the identity holds with a sum in place of an integral.
+
+Starting from $\exp\{-c(p)\} = \sum_{y=0}^{n} \exp\{a(y)b(p) + d(y)\}$ and substituting these terms gives
+\[
+\exp\{-n\log(1-p)\} = \sum_{y=0}^{n} \exp\left\{y\log\!\left(\frac{p}{1-p}\right) + \log\binom{n}{y}\right\}
+\]
+Evaluating the exponent on the right, using $\exp\{A+B\} = \exp\{A\}\exp\{B\}$,
+\[
+\exp\left\{y\log\!\left(\frac{p}{1-p}\right) + \log\binom{n}{y}\right\}
+= \exp\left\{y\log\!\left(\frac{p}{1-p}\right)\right\} \cdot \exp\left\{\log\binom{n}{y}\right\}
+= \left(\frac{p}{1-p}\right)^{y}\binom{n}{y}
+\]
+so the right-hand side becomes
+\[
+\sum_{y=0}^{n} \left(\frac{p}{1-p}\right)^{y}\binom{n}{y} = \left(1 + \frac{p}{1-p}\right)^{n}
+\]
+by the Binomial theorem. Simplifying the base,
+\[
+\left(1 + \frac{p}{1-p}\right)^{n} = \left(\frac{1-p+p}{1-p}\right)^{n} = \left(\frac{1}{1-p}\right)^{n} = (1-p)^{-n}
+\]
+This matches the left-hand side exactly, since
+\[
+\exp\{-n\log(1-p)\} = (1-p)^{-n}
+\]
+Equating both sides and taking logs confirms the identity holds:
+\[
+\log\big[\exp\{-n\log(1-p)\}\big] = \log\big[(1-p)^{-n}\big] \quad\Longrightarrow\quad -n\log(1-p) = -n\log(1-p) \qquad \blacksquare
+\]
+This proves that $c(p) = n\log(1-p)$ is the function that makes $\sum_{y=0}^{n} f(y;n,p) = 1$.
+
+\section{Poisson Distribution}
+
+The Poisson distribution is a discrete probability distribution that expresses the probability of a number of events occurring in a fixed interval of time (or space), given that these events occur with a known constant mean rate and independently of the time since the last event.
+
+\subsubsection*{Probability Mass Function}
+
+\[
+f(y;\lambda) = \frac{\lambda^{y}e^{-\lambda}}{y!}, \qquad \lambda = \text{rate parameter}, \quad y = 0,1,2,\dots
+\]
+
+\subsubsection*{Rewriting in One-Parameter Exponential Form}
+
+Taking logs of both sides gives
+\[
+\log f(y;\lambda) = y\log(\lambda) - \lambda - \log(y!)
+\]
+This is already separated into a piece linear in $y$, a piece depending on $\lambda$ alone, and a piece depending on $y$ alone, so exponentiating and grouping terms according to $f(y;\theta) = \exp\{a(y)b(\theta) + c(\theta) + d(y)\}$ gives
+\[
+f(y;\lambda) = \exp\left\{y\log(\lambda) - \lambda - \log(y!)\right\}
+\]
+so that, with $\theta = \lambda$,
+\begin{align*}
+a(y) &= y \\[4pt]
+b(\lambda) &= \log(\lambda) \\[4pt]
+c(\lambda) &= -\lambda \\[4pt]
+d(y) &= -\log(y!)
+\end{align*}
+Since $a(y) = y$, the Poisson distribution is in canonical form, and $b(\lambda) = \log(\lambda)$ is its canonical parameter. The canonical link for the Poisson distribution is therefore the log link, $g(\mu) = \log(\mu)$, which is why Poisson regression models the log of the mean count as a linear predictor.
+
+\subsubsection*{Proof: Normalising Term $c(\lambda)$}
+
+The value of $c(\lambda)$ stated above is not an arbitrary choice; it follows from the general normalisation identity proved in Part II, applied here with $a(y) = y$, $b(\lambda) = \log(\lambda)$, and $d(y) = -\log(y!)$. Since the Poisson distribution is discrete with unbounded support $y=0,1,2,\dots$, the identity holds with an infinite sum in place of an integral.
+
+Starting from $\exp\{-c(\lambda)\} = \sum_{y=0}^{\infty} \exp\{a(y)b(\lambda) + d(y)\}$ and substituting these terms gives
+\[
+\exp\{-(-\lambda)\} = \sum_{y=0}^{\infty} \exp\left\{y\log(\lambda) - \log(y!)\right\}
+\]
+Decomposing the exponent on the right using exponential laws,
+\[
+\exp\left\{y\log(\lambda) - \log(y!)\right\} = \frac{\exp\{y\log(\lambda)\}}{\exp\{\log(y!)\}} = \frac{\lambda^{y}}{y!}
+\]
+so the identity becomes
+\[
+\exp\{\lambda\} = \sum_{y=0}^{\infty} \frac{\lambda^{y}}{y!}
+\]
+The right-hand side is exactly the Maclaurin series expansion of the exponential function, which is known to equal $e^{\lambda}$:
+\[
+\sum_{y=0}^{\infty} \frac{\lambda^{y}}{y!} = e^{\lambda} = \exp\{\lambda\}
+\]
+Equating both sides confirms the identity holds,
+\[
+\exp\{\lambda\} = \exp\{\lambda\} \qquad \blacksquare
+\]
+This proves that $c(\lambda) = -\lambda$ is the function that makes $\sum_{y=0}^{\infty} f(y;\lambda) = 1$.
+
+\section{Gamma Distribution}
+
+The Gamma distribution is a two-parameter family of continuous probability distributions with many applications across fields such as econometrics and Bayesian statistics. In econometrics, the $(\alpha,\theta)$ shape-scale parameterisation is commonly used to model waiting times, such as time until failure, where it often takes the form of a special case of the Gamma distribution, the Erlang distribution, for integer $\alpha$. In Bayesian statistics, the parameterisation takes the form $(\alpha,\beta)$, with $\beta = 1/\theta$ the rate parameter, and the Gamma distribution is widely used as a conjugate prior for several inverse scale parameters, which facilitates analytical tractability in posterior computations. In GLMs, it is more convenient to work with a mean-shape parameterisation, writing the Gamma distribution in terms of its mean $\mu$ and shape $\nu$, with $\nu$ treated as a nuisance parameter.
+
+\subsubsection*{Probability Density Function}
+
+\[
+f(y;\mu) = \frac{1}{\Gamma(\nu)\,y}\left(\frac{\nu y}{\mu}\right)^{\nu}\exp\left(-\frac{\nu y}{\mu}\right)
+\]
+
+\subsubsection*{Rewriting in One-Parameter Exponential Form}
+
+Taking logs of both sides gives
+\[
+\log f(y;\mu) = -\log\Gamma(\nu) - \log(y) + \nu\big[\log(\nu y) - \log(\mu)\big] - \frac{\nu y}{\mu}
+\]
+Expanding $\log(\nu y) = \log(\nu) + \log(y)$ and collecting terms separates the exponent into a piece linear in $y$, a piece depending on $\mu$ alone, and a piece depending on $y$ alone:
+\[
+\log f(y;\mu) = -\frac{\nu y}{\mu} - \nu\log(\mu) + \Big[(\nu-1)\log(y) + \nu\log(\nu) - \log\Gamma(\nu)\Big]
+\]
+Exponentiating both sides and grouping terms according to $f(y;\theta) = \exp\{a(y)b(\theta) + c(\theta) + d(y)\}$ then gives
+\[
+f(y;\mu) = \exp\left\{y\cdot\left(-\frac{\nu}{\mu}\right) - \nu\log(\mu) + \Big[(\nu-1)\log(y) + \nu\log(\nu) - \log\Gamma(\nu)\Big]\right\}
+\]
+so that, with $\theta = \mu$,
+\begin{align*}
+a(y) &= y \\[4pt]
+b(\mu) &= -\frac{\nu}{\mu} \\[4pt]
+c(\mu) &= -\nu\log(\mu) \\[4pt]
+d(y) &= (\nu-1)\log(y) + \nu\log(\nu) - \log\Gamma(\nu)
+\end{align*}
+Since $a(y) = y$, the Gamma distribution is in canonical form, and $b(\mu) = -\nu/\mu$ is its canonical parameter. Because $b(\mu)$ is proportional to $-1/\mu$, the canonical link for the Gamma distribution is the negative reciprocal link, $g(\mu) = -1/\mu$, in contrast to the identity and log links seen for the Normal and Poisson distributions above.
+
+\subsubsection*{Proof: Normalising Term $c(\mu)$}
+
+The value of $c(\mu)$ stated above is not an arbitrary choice; it follows from the general normalisation identity proved in Part II, applied here with $a(y) = y$, $b(\mu) = -\nu/\mu$, and $d(y) = (\nu-1)\log(y) + \nu\log(\nu) - \log\Gamma(\nu)$.
+
+Starting from $\exp\{-c(\mu)\} = \int \exp\{a(y)b(\mu) + d(y)\}\,dy$ and substituting these terms gives
+\[
+\exp\{\nu\log(\mu)\} = \int_0^{\infty} \exp\left\{-\frac{\nu y}{\mu} + (\nu-1)\log(y) + \nu\log(\nu) - \log\Gamma(\nu)\right\} dy
+\]
+Decomposing the exponent on the right using exponential laws separates out the part of the integrand that depends on $y$ from the part that does not:
+\[
+\exp\left\{-\frac{\nu y}{\mu}\right\} \times \exp\left\{(\nu-1)\log(y) + \nu\log(\nu) - \log\Gamma(\nu)\right\}
+= \exp\left\{-\frac{\nu y}{\mu}\right\} \times \frac{y^{\nu-1}\,\nu^{\nu}}{\Gamma(\nu)}
+\]
+Plugging this back into the integral and pulling the constants $\nu^\nu/\Gamma(\nu)$, which do not depend on $y$, outside it,
+\[
+\int_0^{\infty} \frac{\nu^{\nu}}{\Gamma(\nu)}\, y^{\nu-1}\exp\left\{-\frac{\nu y}{\mu}\right\} dy
+= \frac{\nu^{\nu}}{\Gamma(\nu)} \int_0^{\infty} y^{\nu-1}\exp\left\{-\frac{\nu y}{\mu}\right\} dy
+\]
+The remaining integral is Euler's integral of the second kind, which states that for $a,b > 0$,
+\[
+\int_0^{\infty} y^{a-1}e^{-by}\,dy = \frac{\Gamma(a)}{b^{a}}
+\]
+Applying this with $a = \nu$ and $b = \nu/\mu$ gives
+\[
+\frac{\nu^{\nu}}{\Gamma(\nu)} \int_0^{\infty} y^{\nu-1}\exp\left\{-\frac{\nu y}{\mu}\right\} dy = \frac{\nu^{\nu}}{\Gamma(\nu)}\cdot\frac{\Gamma(\nu)}{(\nu/\mu)^{\nu}} = \frac{1}{\mu^{-\nu}} = \mu^{\nu}
+\]
+This matches the left-hand side exactly, since $\exp\{\nu\log(\mu)\} = \mu^{\nu}$. Equating both sides confirms the identity holds:
+\[
+\exp\{\nu\log(\mu)\} = \mu^{\nu} \qquad \blacksquare
+\]
+This proves that $c(\mu) = -\nu\log(\mu)$ is the function that makes $\int_0^{\infty} f(y;\mu)\,dy = 1$.
+
+\chapter{Properties of the Exponential Family}
+
+Having built up the Normal, Binomial, Poisson, and Gamma distributions in one-parameter exponential family form, it is worth stepping back and asking what general properties fall out of that form itself, independent of which specific distribution is being used. Three results turn out to matter for everything that follows: the mean and variance of the sufficient statistic $a(Y)$ can be read off directly from $b(\theta)$ and $c(\theta)$ without ever touching an integral, and the score function, the quantity that drives maximum likelihood estimation, has an expected value of exactly zero at the true parameter.
+
+\section{Mean of $a(Y)$}
+
+Recall the one-parameter exponential family density from Chapter 5,
+\[
+f(y;\theta) = \exp\{a(y)b(\theta) + c(\theta) + d(y)\}.
+\]
+To find $E(Y)$ directly would normally require evaluating $\sum_y y f(y)$ or $\int y f(y)\,dy$, which can be difficult or intractable depending on the distribution. The exponential family form lets this be sidestepped entirely by working with $a(Y)$ instead: since $a(Y)$ is a sufficient statistic for $\theta$, it is the natural quantity to study, and when the distribution is in canonical form ($a(y) = y$), a general result for $E[a(Y)]$ is at the same time a general result for $E(Y)$.
+
+\subsubsection*{Why not just differentiate $c(\theta)$?}
+
+It is tempting to think that, since differentiating the normalising term $c(\theta)$ will turn out to produce the mean of $a(Y)$, this could be extracted and differentiated directly. The reason this shortcut does not work on its own is that the derivative of $c(\theta)$ alone is only a function of $\theta$; it says nothing by itself. It is only once it is placed back inside the full density, and the identity that every density must integrate to 1 is used, that a relationship between $c(\theta)$ and the moments of $a(Y)$ emerges. That identity is the actual engine of the derivation below.
+
+\subsubsection*{Derivation}
+
+Every valid density satisfies
+\[
+\int f(y;\theta)\, dy = 1 \qquad \text{for all } \theta.
+\]
+Differentiating both sides with respect to $\theta$, and, under standard regularity conditions, interchanging the order of differentiation and integration,
+\[
+\int \frac{\partial f(y;\theta)}{\partial \theta}\, dy = 0.
+\]
+Differentiating the exponential family density itself with respect to $\theta$, using the chain rule on the exponent,
+\[
+\frac{\partial f(y;\theta)}{\partial \theta} = f(y;\theta)\left[a(y)b'(\theta) + c'(\theta)\right].
+\]
+Substituting this back in and splitting the integral, pulling the $\theta$-only terms $b'(\theta)$ and $c'(\theta)$ outside,
+\[
+b'(\theta)\int a(y) f(y;\theta)\, dy \;+\; c'(\theta)\int f(y;\theta)\, dy = 0.
+\]
+The first integral is $E[a(Y)]$ by definition, and the second is 1, so $b'(\theta)\,E[a(Y)] + c'(\theta) = 0$, giving
+\[
+\boxed{E[a(Y)] = -\frac{c'(\theta)}{b'(\theta)}}
+\]
+This is the relationship referred to above: $c'(\theta)$ alone is meaningless without $b'(\theta)$ to divide it by, but together they give the exact mean, with no integration required once $b(\theta)$ and $c(\theta)$ are known.
+
+\section{Variance of $a(Y)$}
+
+To find the variance, the same identity is differentiated a second time with respect to $\theta$:
+\[
+\int \frac{\partial^2 f(y;\theta)}{\partial \theta^2}\, dy = 0.
+\]
+From the mean derivation above, $\dfrac{\partial f}{\partial \theta} = f(y;\theta)\cdot v(\theta,y)$, where $v(\theta,y) = a(y)b'(\theta) + c'(\theta)$. Writing $u = f(y;\theta)$ so that $u' = uv$, the product rule gives $\dfrac{\partial^2 f}{\partial\theta^2} = u'v + uv' = u(v^2 + v')$, that is,
+\[
+\frac{\partial^2 f}{\partial \theta^2} = f(y;\theta)\left[\left(a(y)b'(\theta)+c'(\theta)\right)^2 + a(y)b''(\theta) + c''(\theta)\right].
+\]
+Substituting this into the zero-integral identity above and splitting into two pieces,
+\[
+\underbrace{\int f(y;\theta)\left[a(y)b'(\theta)+c'(\theta)\right]^2 dy}_{\text{(I)}}
+\;+\;
+\underbrace{\int f(y;\theta)\left[a(y)b''(\theta)+c''(\theta)\right] dy}_{\text{(II)}}
+\;=\; 0.
+\]
+
+\subsubsection*{Integral (I)}
+
+Using the mean result above, $c'(\theta) = -b'(\theta)E[a(Y)]$, so the bracket simplifies to $a(y)b'(\theta) + c'(\theta) = b'(\theta)\left(a(y) - E[a(Y)]\right)$. Therefore
+\[
+\text{(I)} = \left[b'(\theta)\right]^2 \int f(y;\theta)\left(a(y)-E[a(Y)]\right)^2 dy = \left[b'(\theta)\right]^2 \text{Var}[a(Y)],
+\]
+since $E\left[(a(Y)-E[a(Y)])^2\right]$ is precisely the definition of $\text{Var}[a(Y)]$.
+
+\subsubsection*{Integral (II)}
+
+Splitting and pulling out the $\theta$-only terms exactly as before,
+\[
+\text{(II)} = b''(\theta)\, E[a(Y)] + c''(\theta).
+\]
+
+\subsubsection*{Combining the two integrals}
+
+Putting (I) and (II) together,
+\[
+\left[b'(\theta)\right]^2 \text{Var}[a(Y)] + b''(\theta)\, E[a(Y)] + c''(\theta) = 0.
+\]
+Substituting the mean result $E[a(Y)] = -c'(\theta)/b'(\theta)$ and isolating $\text{Var}[a(Y)]$ gives
+\[
+\boxed{\text{Var}[a(Y)] = \frac{b''(\theta)\,c'(\theta) - b'(\theta)\,c''(\theta)}{\left[b'(\theta)\right]^{3}}}
+\]
+
+\section{Score Function}
+
+The score is the first derivative of the log-likelihood with respect to the parameter of interest,
+\[
+U(\theta) = \frac{\partial}{\partial \theta}\ell(\theta) = \frac{\partial}{\partial \theta}\ln L(\theta),
+\]
+where $L(\theta)$ is the likelihood and $\ell(\theta) = \ln L(\theta)$ is the log-likelihood.
+\begin{itemize}[nosep]
+  \item If $U(\theta) > 0$, the log-likelihood is increasing at $\theta$.
+  \item If $U(\theta) < 0$, the log-likelihood is decreasing at $\theta$.
+  \item If $U(\theta) = 0$, the log-likelihood is flat (stationary) at $\theta$; this is how the maximum likelihood estimate is characterised.
+\end{itemize}
+
+\subsubsection*{An important property: $E[U(\theta)] = 0$}
+
+A zero expected score reflects the fact that the true parameter sits at the centre of the information provided by the data: on average, the log-likelihood has no tendency to push away from the true $\theta$. This holds for any regular density, not only the exponential family: since $U(\theta) = \dfrac{1}{f(y;\theta)}\dfrac{\partial f(y;\theta)}{\partial\theta}$,
+\[
+E[U(\theta)] = \int f(y;\theta)\,U(\theta)\, dy = \int \frac{\partial f(y;\theta)}{\partial \theta}\, dy = 0,
+\]
+directly from the zero-integral identity used throughout this chapter. The exponential family proof below is the same identity, made concrete using the explicit form of $f(y;\theta)$.
+
+\subsubsection*{Proof for the exponential family}
+
+For $f(y;\theta) = \exp[a(y)b(\theta)+c(\theta)+d(y)]$, the log-density is linear in $b(\theta)$ and $c(\theta)$, so the score is
+\[
+U(\theta) = \frac{\partial}{\partial\theta}\log f(Y;\theta) = a(Y)b'(\theta) + c'(\theta).
+\]
+Taking the expectation, using linearity, and substituting the mean result $E[a(Y)] = -c'(\theta)/b'(\theta)$,
+\[
+E[U(\theta)] = b'(\theta)\, E[a(Y)] + c'(\theta) = b'(\theta)\cdot\left(-\frac{c'(\theta)}{b'(\theta)}\right) + c'(\theta) = -c'(\theta) + c'(\theta) = 0. \qquad \blacksquare
+\]
+\[
+\boxed{E[U(\theta)] = 0}
+\]
+
+\section{Fisher's Information}
+
+Fisher Information answers a single question: how much does one observation tell us about the parameter $\theta$? It admits two equivalent definitions, both of which follow directly from the exponential family results already derived above.
+
+\subsubsection*{As the variance of the score}
+
+Fisher Information is defined as the variance of the score,
+\[
+I(\theta) = \text{Var}[U(\theta)].
+\]
+Because $U(\theta) = a(Y)b'(\theta) + c'(\theta)$ and $c'(\theta)$ does not depend on $Y$, $\text{Var}[U(\theta)] = \left[b'(\theta)\right]^2 \text{Var}[a(Y)]$. Substituting the variance result derived above,
+\[
+I(\theta) = \left[b'(\theta)\right]^2 \cdot \frac{b''(\theta)\,c'(\theta) - b'(\theta)\,c''(\theta)}{\left[b'(\theta)\right]^{3}} = \frac{b''(\theta)\,c'(\theta) - b'(\theta)\,c''(\theta)}{b'(\theta)}.
+\]
+
+\subsubsection*{As the expected curvature of the log-likelihood}
+
+Differentiating the score once more with respect to $\theta$,
+\[
+\frac{\partial^2 \ell}{\partial \theta^2} = a(Y)b''(\theta) + c''(\theta).
+\]
+Taking the expectation and substituting $E[a(Y)] = -c'(\theta)/b'(\theta)$ from the mean result above,
+\[
+E\left[\frac{\partial^2 \ell}{\partial \theta^2}\right] = b''(\theta)\,E[a(Y)] + c''(\theta) = -\frac{b''(\theta)\,c'(\theta)}{b'(\theta)} + c''(\theta) = -I(\theta).
+\]
+So the two definitions coincide:
+\[
+\boxed{I(\theta) = \text{Var}[U(\theta)] = -E\left[\frac{\partial^2 \ell}{\partial \theta^2}\right]}
+\]
+A sharply peaked log-likelihood (high curvature, a large negative second derivative) corresponds to high information; a flat log-likelihood leaves the parameter poorly determined. For $n$ independent observations, information is additive, $I_n(\theta) = n \cdot I_1(\theta)$, and the Cramer-Rao bound states that no unbiased estimator can beat
+\[
+\text{Var}(\hat\theta) \geq \frac{1}{I_n(\theta)},
+\]
+with the maximum likelihood estimator achieving this bound asymptotically.
+
+\subsubsection*{Case study: the Normal distribution}
+
+Rather than differentiating $\log p(x;\mu)$ directly, the Normal case is worked out here from its one-parameter exponential family form, to stay consistent with how every other distribution in this portfolio is handled. From Chapter 6, with $\theta = \mu$ and $\sigma^2$ treated as known,
+\[
+a(y) = y, \qquad b(\mu) = \frac{\mu}{\sigma^2}, \qquad c(\mu) = -\frac{\mu^2}{2\sigma^2},
+\]
+so that
+\[
+b'(\mu) = \frac{1}{\sigma^2}, \qquad b''(\mu) = 0, \qquad c'(\mu) = -\frac{\mu}{\sigma^2}, \qquad c''(\mu) = -\frac{1}{\sigma^2}.
+\]
+Substituting these into the general information formula derived above,
+\[
+I(\mu) = \frac{b''(\mu)\,c'(\mu) - b'(\mu)\,c''(\mu)}{b'(\mu)}
+= \frac{0 - \left(\tfrac{1}{\sigma^2}\right)\left(-\tfrac{1}{\sigma^2}\right)}{1/\sigma^2}
+= \frac{1/\sigma^4}{1/\sigma^2} = \frac{1}{\sigma^2}.
+\]
+For $n$ independent observations, $I_n(\mu) = n/\sigma^2$, and the Cramer-Rao bound gives $\text{Var}(\hat\mu) \geq \sigma^2/n$.
+
+A useful feature of this case falls straight out of the exponential family form: because $b''(\mu) = 0$, the curvature $a(Y)b''(\mu) + c''(\mu)$ reduces to $c''(\mu)$ alone, with no $Y$ in it at all. The observed information therefore equals the expected information exactly, for every sample, not just on average, a structural property of the Normal distribution that does not hold for a distribution such as the Poisson.
+
+A simulation with $\mu = 5$ under two variances, $\sigma^2 = 25$ and $\sigma^2 = 1$, illustrates these results. Figure~\ref{fig:normal-fisher} shows five views of the same underlying idea. Panel 1 shows the log-likelihood sharpening as variance decreases, holding $n$ fixed. Panel 2 shows the score fluctuating more widely across repeated single-observation draws when $\sigma^2$ is small, exactly the larger variance that defines higher Fisher Information. Panel 3 shows the information as flat in $\mu$ for both scenarios, confirming $I(\mu)$ does not depend on where the true mean sits. Panel 4 tracks the Cramer-Rao bound: empirical variance of 4000 simulated MLEs against the theoretical bound $\sigma^2/n$, on a log-log scale, for both variances. Panel 6 plots $I(\mu) = 1/\sigma^2$ against $\sigma^2$ directly, marking the two scenarios and making the inverse relationship visible. Numerically, the theoretical information values $I(\mu) = 0.04$ and $I(\mu) = 1$ match a Monte Carlo estimate of $\text{Var}(\hat\mu)$ at $n=100$ closely ($0.2435$ against a bound of $0.25$ for $\sigma^2=25$; $0.0102$ against a bound of $0.01$ for $\sigma^2=1$): a 25-fold difference in variance produces exactly a 25-fold difference in information.
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=\textwidth]{normal_fisher_panels_5.png}
+  \caption{Fisher Information for Normal($\mu=5$), comparing $\sigma^2=25$ against $\sigma^2=1$.}
+  \label{fig:normal-fisher}
+\end{figure}
+
+% ================= PART IV: BUILDING THE GLM =================
+\part{Building the GLM}
+
+\chapter{The Three Ingredients}
+
+\chapter{Link Functions}
+
+\chapter{Parameter Estimation}
+
+% ================= PART V: APPLYING GLMS =================
+\part{Applying GLMs}
+
+\chapter{Logistic Regression}
+
+\chapter{Poisson Regression}
+
+\chapter{Gamma Regression}
+
+% ================= PART VI: MODEL EVALUATION =================
+\part{Model Evaluation}
+
+\chapter*{Residuals}
+\addcontentsline{toc}{chapter}{Residuals}
+
+\chapter*{Deviance}
+\addcontentsline{toc}{chapter}{Deviance}
+
+\chapter*{Pearson Residuals}
+\addcontentsline{toc}{chapter}{Pearson Residuals}
+
+\chapter*{Cook's Distance}
+\addcontentsline{toc}{chapter}{Cook's Distance}
+
+\chapter*{Leverage}
+\addcontentsline{toc}{chapter}{Leverage}
+
+\chapter*{AIC}
+\addcontentsline{toc}{chapter}{AIC}
+
+\chapter*{Likelihood Ratio Tests}
+\addcontentsline{toc}{chapter}{Likelihood Ratio Tests}
+
+\chapter*{Overdispersion}
+\addcontentsline{toc}{chapter}{Overdispersion}
+
+\chapter*{Model Comparison}
+\addcontentsline{toc}{chapter}{Model Comparison}
+
+% ================= PART VII: REFLECTION =================
+\part{Reflection}
+
+\chapter{Everything Connected}
+
+\chapter{Personal Reflection}
+
+% ================= APPENDICES =================
+\part{Appendices}
+
+\chapter*{Matrix Algebra}
+\addcontentsline{toc}{chapter}{Matrix Algebra}
+
+\chapter*{Additional Proofs}
+\addcontentsline{toc}{chapter}{Additional Proofs}
+
+\chapter*{R Code}
+\addcontentsline{toc}{chapter}{R Code}
+
+\chapter*{Python Code}
+\addcontentsline{toc}{chapter}{Python Code}
+
+\chapter*{Dataset Dictionary}
+\addcontentsline{toc}{chapter}{Dataset Dictionary}
+
+\chapter*{Notation}
+\addcontentsline{toc}{chapter}{Notation}
+
+\chapter*{References}
+\addcontentsline{toc}{chapter}{References}
+
+% ================= BIBLIOGRAPHY =================
+\chapter*{Bibliography}
+\addcontentsline{toc}{chapter}{Bibliography}
+
+Referencing is done using APA style.
+
+\begin{thebibliography}{99}\setlength{\itemsep}{0.5em}
+
+\bibitem{wiki} Generalised Linear Models. (Last edited 7 June 2026). In \textit{Wikipedia}. \url{https://en.wikipedia.org/wiki/Generalized_linear_model}
+
+\bibitem{dobson} Dobson, A. J., \& Barnett, A. G. (2018). \textit{An introduction to generalized linear models} (4th ed.). CRC Press.
+
+\bibitem{mccullagh} McCullagh, P., \& Nelder, J. A. (1989). \textit{Generalized linear models} (2nd ed.). Chapman and Hall/CRC.
+
+\bibitem{nelderwedderburn} Nelder, J. A., \& Wedderburn, R. W. M. (1972). Generalized linear models. \textit{Journal of the Royal Statistical Society: Series A}, 135(3), 370--384.
+
+\bibitem{agresti} Agresti, A. (2015). \textit{Foundations of linear and generalized linear models}. John Wiley \& Sons.
+
+\bibitem{casella} Casella, G., \& Berger, R. L. (2002). \textit{Statistical inference} (2nd ed.). Duxbury Press.
+
+\bibitem{nowak} Nowak, R. (n.d.). \textit{Note on generalized linear models} [Lecture notes]. University of Wisconsin--Madison, Department of Electrical and Computer Engineering. \url{https://nowak.ece.wisc.edu/ece830/glm_notes.pdf}
+
+\bibitem{taylor} Taylor, J. (n.d.). \textit{Generalized linear models} [Lecture notes]. Stanford University, Department of Statistics. \url{https://web.stanford.edu/class/stats305b/notes/GLM_I.html}
+
+\end{thebibliography}
+
+\end{document}
