@@ -1,0 +1,53 @@
+\documentclass[11pt,a4paper,openany]{scrbook}
+\input{preamble.tex}
+
+\begin{document}
+
+% ================= TITLE PAGE =================
+\begin{titlepage}
+\begin{tikzpicture}[remember picture,overlay]
+  \fill[tealmain] (current page.north west) rectangle ([yshift=-3.2cm]current page.north east);
+  \fill[amberacc] (current page.south west) rectangle ([yshift=0.55cm]current page.south east);
+\end{tikzpicture}
+\vspace*{4.6cm}
+\begin{flushleft}
+\hspace{0.2cm}
+\begin{minipage}{0.9\textwidth}
+{\sffamily\bfseries\huge\color{tealmain} Generalised Linear Models}\\[6pt]
+{\sffamily\Large\color{amberacc} A Portfolio}\\[26pt]
+{\sffamily\large\color{inkblack} An Exploration--Cognition--Reflection--Application journey through GLM theory}\\[60pt]
+{\sffamily\color{greyline} Dominion Oamen}\\
+{\sffamily\small\color{greyline} University of the Free State}
+\end{minipage}
+\end{flushleft}
+\end{titlepage}
+
+\frontmatter
+\tableofcontents
+
+\chapter*{Foreword}
+\addcontentsline{toc}{chapter}{Foreword}
+
+This portfolio began as an attempt to capture my journey from absolute uncertainty to a solid grasp of Generalised Linear Models. My aim is to document not just the concepts, but the problems I encountered, the questions I asked, and how I went about answering them.
+
+Traditional note-taking usually amounts to writing down vague, cognitively disconnected concepts that teach the how without ever establishing the why. This portfolio takes the opposite approach: it moves slowly through the why before arriving at the how.
+
+To ground these concepts in something real, one dataset runs throughout this entire portfolio: nitrogen fertilizer applied against potato yield. Working with the same data across every chapter surfaces questions that never show up when the math and terminology are understood only in the abstract.
+
+I have not approached this portfolio like a textbook, even though it covers essentially all the mathematics needed for a first course in GLMs. Instead, the structure follows the shape of the problem itself: try something, watch it fail, ask why it failed, then build the solution that addresses that specific failure. Each chapter is a pathway from problem to solution rather than a definition waiting to be memorised.
+
+By the end of this portfolio, a reader should understand why we speak about generalised linear models at all, the mathematics underlying them, how to fit a GLM, and how to interpret its results. As an added bonus, I also cover dimensionality reduction using Permutation Variable Importance in Python via DALEX, since knowing which variables actually matter, and which can safely be dropped, is a skill that bridges data engineering and data analysis. Python handles that variable selection step; R handles the GLM fitting itself, since it has strong built-in support for it.
+
+Partway through this portfolio I settled on a study technique I call \textbf{ECRA}: \textbf{E}xploration, \textbf{C}ognition, \textbf{R}eflection, \textbf{A}pplication. Each chapter, where the ECRA structure applies, moves through these four phases in order: Exploration is the informal, beginner's first contact with a concept (a video, a search, an intuition); Cognition is where things get formal, with definitions and derivations; Reflection is where I step back and interrogate what actually landed and what didn't; and Application is where the concept gets used, tested, or simulated. Some phases are still blank while I work through the material; those are marked accordingly.
+
+Without further ado, let's start this journey together.
+
+\mainmatter
+
+\input{chapters/part1.tex}
+\input{chapters/part2.tex}
+\input{chapters/part3.tex}
+\input{chapters/part4.tex}
+\input{chapters/part5.tex}
+
+\end{document}

@@ -1,0 +1,200 @@
+% ============================================================
+%  GLM PORTFOLIO -- SHARED PREAMBLE
+%  Playful-but-structured design, ECRA phase system
+% ============================================================
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{charter}
+\usepackage[scaled=0.92]{helvet}
+\renewcommand{\familydefault}{\rmdefault}
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage[colorlinks=true,linkcolor=tealmain_,citecolor=tealmain_,urlcolor=amberacc_]{hyperref}
+\usepackage[round]{natbib}
+\usepackage{caption}
+
+\geometry{a4paper, margin=2.6cm, headsep=1.1cm}
+
+% avoid blank pages from \frontmatter/\mainmatter/\part forcing odd-page starts
+\let\cleardoublepage\clearpage
+\let\cleardoubleoddpage\clearpage
+\let\cleardoubleevenpage\clearpage
+
+% ---------- Colour palette ----------
+% Core: teal (Cognition), amber (Reflection)
+% Extended: slate-blue (Exploration), graphite (Application) -- tints/neutrals, not new loud hues
+\definecolor{inkblack}{HTML}{1F2328}
+\definecolor{tealmain}{HTML}{146C6E}
+\definecolor{tealsoft}{HTML}{E3F2F1}
+\definecolor{amberacc}{HTML}{D97C2B}
+\definecolor{ambersoft}{HTML}{FBEBDA}
+\definecolor{slateacc}{HTML}{3B5A76}
+\definecolor{slatesoft}{HTML}{E9EFF4}
+\definecolor{graphite}{HTML}{4B4F52}
+\definecolor{graphitesoft}{HTML}{EDEDED}
+\definecolor{greyline}{HTML}{9AA5A9}
+\definecolor{mathsoft}{HTML}{F3F8F8}
+
+% aliases so hyperref (loaded before some defs) can see the colours
+\colorlet{tealmain_}{tealmain}
+\colorlet{amberacc_}{amberacc}
+
+\color{inkblack}
+
+% ---------- Chapter / section styling ----------
+\titleformat{\chapter}[display]
+  {\normalfont\sffamily\bfseries}
+  {\begin{tikzpicture}[remember picture,overlay]
+     \fill[tealmain] (-0.45,-0.15) rectangle (-0.17,0.85);
+   \end{tikzpicture}\color{greyline}\Large\MakeUppercase{\chaptertitlename} \thechapter}
+  {6pt}
+  {\color{tealmain}\Huge}
+\titlespacing*{\chapter}{0pt}{10pt}{22pt}
+
+\RedeclareSectionCommand[
+  beforeskip=-10pt, afterskip=20pt,
+  font=\normalfont\sffamily\bfseries\huge\color{tealmain}
+]{part}
+\renewcommand{\partformat}{\color{greyline}\sffamily\Large\MakeUppercase{\partname}~\thepart.\quad}
+
+\titleformat{\section}
+  {\normalfont\sffamily\bfseries\color{tealmain}\Large}{\thesection}{8pt}{}
+\titleformat{\subsection}
+  {\normalfont\sffamily\bfseries\color{amberacc}\large}{\thesubsection}{8pt}{}
+\titleformat{\subsubsection}
+  {\normalfont\sffamily\bfseries\color{amberacc}}{\thesubsubsection}{6pt}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyhead[LE,RO]{\sffamily\small\thepage}
+\fancyhead[RE]{\sffamily\small\nouppercase{\leftmark}}
+\fancyhead[LO]{\sffamily\small\nouppercase{\rightmark}}
+
+% ============================================================
+%  ECRA PHASE SYSTEM
+%  Each phase = a coloured banner heading + a matching box style
+% ============================================================
+
+% ---- generic phase-banner heading ----
+\newcommand{\phaseheading}[2]{%
+  \vspace{14pt}
+  \noindent\colorbox{#1}{\parbox{\dimexpr\linewidth-12pt}{\vspace{3pt}\sffamily\bfseries\color{white}\large #2\vspace{3pt}}}%
+  \vspace{8pt}\par
+}
+
+% ---- EXPLORATION: slate-blue, "browser frame" screenshot box ----
+\newcommand{\Exploration}{\phaseheading{slateacc}{Exploration}}
+
+\newenvironment{screenshot}[1][]{%
+  \begin{center}
+  \begin{tcolorbox}[
+    colback=white, colframe=slateacc, boxrule=0.6pt, arc=1pt,
+    width=0.92\linewidth,
+    top=2pt,bottom=2pt,left=2pt,right=2pt,
+    before skip=8pt, after skip=4pt
+  ]
+  \ifx\\#1\\\else{\sffamily\footnotesize\color{slateacc} #1}\\[2pt]\fi
+}{%
+  \end{tcolorbox}
+  \end{center}
+}
+
+% informal exploration-phase source note (not a formal \cite)
+\newcommand{\explorationsource}[1]{{\sffamily\footnotesize\color{slateacc} Source: #1}}
+
+% ---- COGNITION: teal, definitions + theorems + formal citation ----
+\newcommand{\Cognition}{\phaseheading{tealmain}{Cognition}}
+
+\newtcolorbox{defbox}[1][]{
+  colback=tealsoft, colframe=tealmain, boxrule=0.6pt, arc=2pt,
+  fonttitle=\sffamily\bfseries, title={Definition#1},
+  left=8pt,right=8pt,top=5pt,bottom=5pt
+}
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\renewcommand{\qedsymbol}{$\blacksquare$}
+
+% glossary-style term heading (for Chapter 3's Language of GLMs)
+\newcommand{\term}[1]{\vspace{4pt}\subsubsection*{\sffamily\bfseries\color{tealmain} #1}}
+
+% unnumbered chapter heading (Part IV evaluation topics), same visual family, no "Chapter N" tab
+\newcommand{\uchapter}[1]{%
+  \clearpage
+  \phantomsection
+  \vspace*{10pt}
+  {\sffamily\bfseries\color{tealmain}\huge #1\par}
+  \vspace{18pt}
+  \addcontentsline{toc}{chapter}{#1}
+  \markboth{#1}{#1}
+}
+
+% ---- REFLECTION: amber, question/exercise boxes ----
+\newcommand{\Reflection}{\phaseheading{amberacc}{Reflection}}
+
+\newtcolorbox{questionbox}[1][]{
+  colback=ambersoft, colframe=amberacc, boxrule=0.6pt, arc=2pt,
+  fonttitle=\sffamily\bfseries, title={Question#1},
+  left=8pt,right=8pt,top=5pt,bottom=5pt
+}
+
+% ---- APPLICATION: graphite/neutral, code ----
+\newcommand{\Application}{\phaseheading{graphite}{Application}}
+
+\lstdefinestyle{rcode}{
+  backgroundcolor=\color{graphitesoft},
+  basicstyle=\ttfamily\footnotesize\color{inkblack},
+  keywordstyle=\color{tealmain}\bfseries,
+  commentstyle=\color{greyline}\itshape,
+  numberstyle=\tiny\color{greyline},
+  stringstyle=\color{amberacc},
+  numbers=left,
+  numbersep=8pt,
+  frame=single,
+  rulecolor=\color{greyline},
+  framerule=0.4pt,
+  breaklines=true,
+  showstringspaces=false,
+  xleftmargin=10pt,
+  framexleftmargin=6pt
+}
+\lstset{style=rcode}
+
+% "to be completed" placeholder, styled quietly so it doesn't compete visually
+\newcommand{\tbc}{{\sffamily\itshape\color{greyline} To be completed.}\par\vspace{6pt}}
+
+% ============================================================
+%  MATH HIGHLIGHT DESIGN
+%  Every standalone display equation gets its own subtle
+%  highlighted band, distinguishing math from prose at a glance.
+% ============================================================
+\usepackage[framemethod=TikZ]{mdframed}
+\mdfdefinestyle{mathstyle}{
+  backgroundcolor=mathsoft,
+  linecolor=tealmain,
+  linewidth=0pt,
+  leftline=true,
+  topline=false,
+  bottomline=false,
+  rightline=false,
+  linewidth=2.5pt,
+  innerleftmargin=12pt,
+  innerrightmargin=8pt,
+  innertopmargin=6pt,
+  innerbottommargin=6pt,
+  skipabove=8pt,
+  skipbelow=8pt
+}
+\newmdenv[style=mathstyle]{mathbox}
